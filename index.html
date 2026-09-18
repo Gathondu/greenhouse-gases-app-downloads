@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Download Greenhouse Gases App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 60px auto; padding: 0 20px; background: #f9f9f9; color: #222; }
+    h1 { font-size: 1.8rem; }
+    .subtitle { color: #666; margin-bottom: 2rem; }
+    .notice { background: #e8f4fd; border: 1px solid #90caf9; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; font-size: 0.95rem; }
+    .platform { background: white; border-radius: 10px; padding: 20px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .platform h2 { margin: 0 0 12px; font-size: 1rem; }
+    a.btn { display: inline-block; margin: 4px 6px 4px 0; padding: 9px 18px; background: #0969da; color: white; border-radius: 6px; text-decoration: none; font-size: 0.9rem; }
+    a.btn:hover { background: #0550ae; }
+    footer { margin-top: 48px; color: #aaa; font-size: 0.8rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Greenhouse Gases App</h1>
+  <div id="loading" class="subtitle">Loading release information...</div>
+  <div id="content" style="display:none"></div>
+  <footer>Access restricted to authorized collaborators.</footer>
+
+  <script>
+    const PRIVATE_REPO = "Gathondu/ghg";
+    const VERSION = "v1.0.1";
+
+    const platforms = [
+      { label: "🐧 Linux (x64)", exts: [".deb", ".rpm", ".AppImage"] },
+      { label: "🪟 Windows (x64)", exts: ["x64-setup.exe", "x64.msi"] },
+      { label: "🪟 Windows (x86)", exts: ["x86-setup.exe", "x86.msi"] },
+      { label: "🍎 macOS (Intel)", exts: ["-x64.dmg", "-x64.zip"] },
+      { label: "🍎 macOS (Apple Silicon)", exts: ["-arm64.dmg", "-arm64.zip"] },
+    ];
+
+    fetch(`https://api.github.com/repos/${PRIVATE_REPO}/releases/tags/${VERSION}`)
+      .then(r => {
+        if (r.status === 404) throw new Error("not_found");
+        return r.json();
+      })
+      .then(release => {
+        const assets = release.assets || [];
+        const date = new Date(release.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+        let html = `
+          <div class="notice">
+            ℹ️ Downloads require you to be logged into GitHub as an authorized collaborator.
+            <a href="https://github.com/login" target="_blank">Log in here</a> if prompted.
+          </div>
+          <p class="subtitle">Version <strong>${release.tag_name}</strong> — ${date}</p>
+        `;
+
+        platforms.forEach(p => {
+          const matches = assets.filter(a =>
+            p.exts.some(ext => a.name.toLowerCase().includes(ext.toLowerCase()))
+          );
+          if (!matches.length) return;
+          html += `<div class="platform"><h2>${p.label}</h2>`;
+          matches.forEach(a => {
+            const size = (a.size / 1024 / 1024).toFixed(1);
+            html += `<a class="btn" href="${a.browser_download_url}">${a.name} (${size} MB)</a>`;
+          });
+          html += `</div>`;
+        });
+
+        if (release.body) {
+          const notes = release.body.replace(/</g, "&lt;").replace(/\n/g, "<br>");
+          html += `<div class="platform"><h2>📋 Release Notes</h2><p>${notes}</p></div>`;
+        }
+
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("content").innerHTML = html;
+        document.getElementById("content").style.display = "block";
+      })
+      .catch(err => {
+        document.getElementById("loading").innerHTML = err.message === "not_found"
+          ? "⚠️ Release not found or you need to <a href='https://github.com/login'>log into GitHub</a> to access it."
+          : "Error loading release info. Please try again.";
+      });
+  </script>
+</body>
+</html>
